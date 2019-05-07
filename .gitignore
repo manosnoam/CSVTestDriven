@@ -2,12 +2,16 @@
 __pycache__/
 /libspecs/
 
+# IDE directory
+/.idea/**/*
+
 # Test Output
 **/log.html
-**/output.html
+**/output.xml
 **/report.html
 /Skynet_TC_1_(nmanos.tlv.csb)/
 
 # Temporarly ignore Keywords and Variables directories
 /Keywords/
 /Variables/
+
