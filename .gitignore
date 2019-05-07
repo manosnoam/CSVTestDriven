@@ -1,1 +1,13 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
 /libspecs/
+
+# Test Output
+**/log.html
+**/output.html
+**/report.html
+/Skynet_TC_1_(nmanos.tlv.csb)/
+
+# Temporarly ignore Keywords and Variables directories
+/Keywords/
+/Variables/
