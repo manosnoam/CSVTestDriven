@@ -1,0 +1,7 @@
+Step,Action,Library,Timeout,Tags,Data,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+1,Connect To Cluster,OpenshiftTester,500,critical,$kube_conf = Resources/skynet_kube.config,,,
+#2,Check CLI version,,,sanity critical,,,,,
+3,Create Service,,100,critical,$api_version = v1,$svc_name = my-service1,$app_name = MyApp1,$protocol = TCP,$port = 8080,$target_port = 9376
+4,Create Router,,,,$api_version = route.openshift.io/v1,$route_name = frontend,$host = www.example.com,$target_svc = my-service1
+5,Create Service,,,critical,$api_version = v1,$svc_name = my-service2,$app_name = MyApp2,$protocol = TCP,$port = 8080,$target_port = 5278
+6,Create Router,,,,$api_version = route.openshift.io/v1,$route_name = backend,$host = www.logonos.com,$target_svc = my-service2
