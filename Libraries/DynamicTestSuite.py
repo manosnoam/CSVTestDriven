@@ -35,6 +35,9 @@ REPORT_FILE = 'report.html'
 LOG_FILE = 'log.html'
 __cur_path__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 LIB_PATH = __cur_path__
+TAG_SKIP = '#skip'
+MSG_SKIP = 'Skipping a test marked with #'
+MSG_CRITICAL = 'Skipping all tests after critical failure'
 
 			
 class ResultSkippedAfterCritical(ResultVisitor):
@@ -42,10 +45,18 @@ class ResultSkippedAfterCritical(ResultVisitor):
 	def visit_suite(self, suite):
 		suite.set_criticality(critical_tags='Critical')
 		for test in suite.tests:
-			test.name = re.sub(r'.*:', '', test.name)
-			if test.status == 'FAIL' and 'Critical failure occurred' in test.message:
-				test.status = 'NOT_RUN'
-				test.message = 'Skipping test execution after critical failure.'
+			# Remove preceding library name and # from test name
+			test.name = re.sub(r'.*:', '', test.name).strip()
+			if test.status == 'FAIL':
+				if 'Critical failure occurred' in test.message:
+					test.status = 'NOT_RUN'
+					test.message = MSG_CRITICAL
+				elif 'No keyword with name' in test.message:
+					test.status = 'NOT_RUN'
+			if test.status == 'PASS':
+				if TAG_SKIP in test.tags:
+					test.status = 'NOT_RUN'
+					test.message = MSG_SKIP
 
 
 class DynamicTestSuite():
@@ -68,7 +79,7 @@ class DynamicTestSuite():
 	def create_test_suite_from_csv(self, csvFilePath, suiteResource, suiteTagName='Data-Driven Test', suiteNameSuffix=None):
 		self.suiteTagName = suiteTagName
 		csvFilePath = csvFilePath.replace('\\', '/')
-		suiteNameSuffix = suiteNameSuffix or '(%s)' % platform.node()
+		suiteNameSuffix = suiteNameSuffix or ''  # (%s)' % platform.node()
 		
 		if os.path.isdir(csvFilePath):
 			csvFiles = OperatingSystem().list_files_in_directory(csvFilePath, pattern='*.csv', absolute=True)
@@ -80,7 +91,7 @@ class DynamicTestSuite():
 			logger.info(F'\nGenerating Test Suite from: {csvFileName}', also_console=True)
 			suite = TestSuiteBuilder().build(suiteResource.replace('\\', '/'))
 			
-			suite.name = '%s %s' % (os.path.splitext(os.path.basename(csvFileName))[0], suiteNameSuffix)
+			suite.name = F'{os.path.splitext(os.path.basename(csvFileName))[0]}{suiteNameSuffix}'
 			# suite.name = os.path.basename(csvFileName)
 			suite.doc = csvFileName
 			suite.resource.imports.library('BuiltIn')
@@ -113,12 +124,15 @@ class DynamicTestSuite():
 				continue
 			# testDataParams = False
 			if key == 'step':
-				value = value.pop()
-				if value.startswith('#') or value == '':
+				step = value.pop()
+				# if value.startswith('#') or value == '':
+				if step == '':
 					return  # TODO: change TestCase status to SKIPPED
-				step = value  # 'Step %02d' % int(value)
+				# step = value  # 'Step %02d' % int(value)
 			elif key == 'action':
 				actionKeyword = value.pop().strip()
+				# if step.startswith('#'):
+				# 	actionKeyword = F'#{actionKeyword}'
 			elif key == 'library':
 				suiteLibrary = value.pop().strip()
 			elif key == 'timeout':
@@ -159,10 +173,13 @@ class DynamicTestSuite():
 				# testCase.timeout = timeouts.TestTimeout(timeoutSeconds, tttt)
 				testCase.timeout.value = timeoutSeconds
 				testCase.timeout.message = F'Timeout of {timeoutSeconds} seconds has exceeded while executing: {suiteLibrary}:{actionKeyword}'
-			testCase.keywords.create(F'{suiteLibrary}.setup', args=[], type='setup')
-			testCase.keywords.create(F'{suiteLibrary}.{actionKeyword}', args=[F'{k}={v}' for k, v in testData.items()], type='kw') 
-			testCase.keywords.create('Default Tests Teardown', args=[], type='teardown')
-	
+			if step.startswith('#'):
+				testCase.keywords.create(F'Pass Execution', args=[MSG_SKIP, TAG_SKIP], type='kw')
+			else:
+				testCase.keywords.create(F'{suiteLibrary}.setup', args=[], type='setup')
+				testCase.keywords.create(F'{suiteLibrary}.{actionKeyword}', args=[F'{k}={v}' for k, v in testData.items()], type='kw') 
+				testCase.keywords.create('Default Tests Teardown', args=[], type='teardown')
+				
 	def run_tests(self, outputDir=None):
 		''' Report and xUnit files can be generated based on the  result object. '''
 		for suite in self.suites:

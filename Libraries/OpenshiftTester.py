@@ -4,8 +4,10 @@ __email__ = 'manosnoam@gmail.com'
 
 import warnings
 import yaml
+import requests
 from kubernetes import client, config
 from openshift.dynamic import DynamicClient
+from openshift.dynamic import exceptions
 
 
 class OpenshiftTester():
@@ -51,27 +53,22 @@ class OpenshiftTester():
         '''
          
         service_data = yaml.load(service, Loader=yaml.SafeLoader)
-        resp = v1_services.delete(name=service_data['metadata']['name'], namespace='default')
+        service_name = service_data['metadata']['name']
+        try:
+            # obj = v1_services.get(name=service_data['metadata']['name'], namespace='default')
+            resp = v1_services.delete(name=service_name, namespace='default')
+            print (F'Service {{service_name}} found and removed.')
+        except exceptions.NotFoundError as err:
+            print (F'Service "{service_name}" not found.')
         resp = v1_services.create(body=service_data, namespace='default')
+        
         # resp is a ResourceInstance object
         print(resp.metadata)
         
     def create_router(self, api_version, route_name, host, target_svc):
         kind = 'Route'
         v1_routes = self.dyn_client.resources.get(api_version=api_version, kind=kind)
-        
-#         route = """
-#         apiVersion: route.openshift.io/v1
-#         kind: Route
-#         metadata:
-#           name: frontend
-#         spec:
-#           host: www.example.com
-#           to:
-#             kind: Service
-#             name: my-service
-#         """
-        
+         
         route = F'''
         apiVersion: {api_version}
         kind: Route
@@ -85,7 +82,12 @@ class OpenshiftTester():
         '''
         
         route_data = yaml.load(route, Loader=yaml.SafeLoader)
-        # resp = v1_routes.delete(name=route_data['metadata']['name'], namespace='default')
+        route_name = route_data['metadata']['name']
+        try:
+            resp = v1_routes.delete(name=route_name, namespace='default')
+            print (F'Route {{route_name}} found and removed.')
+        except exceptions.NotFoundError as err:
+            print (F'Route "{route_name}" not found.')
         resp = v1_routes.create(body=route_data, namespace='default')
         
         # resp is a ResourceInstance object
